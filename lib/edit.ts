@@ -13,6 +13,7 @@ export interface EditBlockInput {
   currentHtml: string;
   comment: string;
   tokens: BrandTokens;
+  apiKey: string;
 }
 
 function systemPrompt(tokens: BrandTokens): string {
@@ -35,7 +36,7 @@ Output ONLY a single JSON object, with no prose and no markdown fences, of this 
 export async function editBlock(
   input: EditBlockInput,
 ): Promise<{ html: string; note: string }> {
-  const client = getClient();
+  const client = getClient(input.apiKey);
   const userContent = `Section type: ${input.blockType}
 
 Current HTML:

@@ -1,7 +1,7 @@
 import * as cheerio from "cheerio";
 import { z } from "zod";
 import type { BrandTokens } from "./types";
-import { getClient, hasApiKey, MODEL } from "./anthropic";
+import { getClient, MODEL } from "./anthropic";
 import { withDefaults } from "./tokens";
 import { extractJson, textOf } from "./llm";
 
@@ -268,19 +268,22 @@ function heuristicTokens(signals: SiteSignals): BrandTokens {
 }
 
 /** Full pipeline: scrape signals, then normalize into brand tokens via Claude. */
-export async function extractBrand(rawUrl: string): Promise<{
+export async function extractBrand(
+  rawUrl: string,
+  apiKey?: string | null,
+): Promise<{
   tokens: BrandTokens;
   signals: SiteSignals;
   usedAi: boolean;
 }> {
   const signals = await collectSiteSignals(rawUrl);
 
-  if (!hasApiKey()) {
+  if (!apiKey) {
     return { tokens: heuristicTokens(signals), signals, usedAi: false };
   }
 
   try {
-    const client = getClient();
+    const client = getClient(apiKey);
     const userContent = [
       `URL: ${signals.url}`,
       `Detected name: ${signals.name}`,

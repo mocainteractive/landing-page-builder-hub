@@ -3,20 +3,19 @@ import Anthropic from "@anthropic-ai/sdk";
 /** Model used across the app. Opus 4.8 unless overridden via env. */
 export const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-4-8";
 
-let client: Anthropic | null = null;
+export { ANTHROPIC_KEY_HEADER } from "./moca-headers";
 
-/** Lazily construct the Anthropic client; throws a clear error if unconfigured. */
-export function getClient(): Anthropic {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error(
-      "ANTHROPIC_API_KEY is not set. Copy .env.example to .env.local and add your key.",
-    );
-  }
-  if (!client) client = new Anthropic();
-  return client;
+/**
+ * Resolve the Anthropic key for a request. In production the key comes from the
+ * Moca Hub (per client) via header; locally it falls back to the server env.
+ */
+export function resolveAnthropicKey(explicit?: string | null): string | null {
+  const fromHeader = explicit?.trim();
+  if (fromHeader) return fromHeader;
+  return process.env.ANTHROPIC_API_KEY?.trim() || null;
 }
 
-/** Whether AI features are available in the current environment. */
-export function hasApiKey(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY);
+/** Construct an Anthropic client for the given key. */
+export function getClient(apiKey: string): Anthropic {
+  return new Anthropic({ apiKey });
 }

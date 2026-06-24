@@ -15,6 +15,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { GripVertical } from "lucide-react";
 import type { BlockInstance } from "@/lib/types";
 
 function LayerRow({
@@ -42,8 +43,13 @@ function LayerRow({
       className={`layer ${selected ? "selected" : ""}`}
       onClick={onSelect}
     >
-      <span className="grip" {...attributes} {...listeners} title="Drag to reorder">
-        ⠿
+      <span
+        className="grip"
+        {...attributes}
+        {...listeners}
+        title="Trascina per riordinare"
+      >
+        <GripVertical size={15} />
       </span>
       <span className="name">{block.type}</span>
       {block.customHtml ? <span className="tag">AI</span> : null}

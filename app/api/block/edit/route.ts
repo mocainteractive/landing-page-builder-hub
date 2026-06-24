@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 import { editBlock } from "@/lib/edit";
-import { hasApiKey } from "@/lib/anthropic";
+import { ANTHROPIC_KEY_HEADER, resolveAnthropicKey } from "@/lib/anthropic";
 import { withDefaults } from "@/lib/tokens";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
 export async function POST(req: Request) {
-  if (!hasApiKey()) {
+  const apiKey = resolveAnthropicKey(req.headers.get(ANTHROPIC_KEY_HEADER));
+  if (!apiKey) {
     return NextResponse.json(
-      { error: "ANTHROPIC_API_KEY is not configured on the server." },
+      { error: "Nessuna chiave Anthropic disponibile (configurala su Moca Hub)." },
       { status: 503 },
     );
   }
@@ -23,13 +24,13 @@ export async function POST(req: Request) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    return NextResponse.json({ error: "Corpo JSON non valido." }, { status: 400 });
   }
 
   const { blockType, currentHtml, comment } = body;
   if (!currentHtml || !comment) {
     return NextResponse.json(
-      { error: "Missing 'currentHtml' or 'comment'." },
+      { error: "Parametri 'currentHtml' o 'comment' mancanti." },
       { status: 400 },
     );
   }
@@ -40,10 +41,11 @@ export async function POST(req: Request) {
       currentHtml,
       comment,
       tokens: withDefaults(body.tokens as never),
+      apiKey,
     });
     return NextResponse.json(result);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Edit failed.";
+    const message = err instanceof Error ? err.message : "Modifica fallita.";
     return NextResponse.json({ error: message }, { status: 502 });
   }
 }

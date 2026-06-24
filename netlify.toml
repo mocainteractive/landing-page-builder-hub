@@ -1,0 +1,26 @@
+# Netlify configuration for the Next.js app (Moca Hub app).
+# The official Next.js runtime is auto-installed by Netlify; API routes run as
+# Node Functions (they use cheerio/undici/@supabase/supabase-js).
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  # Public Moca Hub base URL the SDK validates launch tokens against.
+  # Override per site if you use a different hub deployment.
+  NEXT_PUBLIC_MOCA_HUB_URL = "https://moca-central-hub.netlify.app"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# ── Secrets (set in Netlify UI → Site settings → Environment variables) ──────
+# Do NOT commit these. Server-only unless prefixed NEXT_PUBLIC_.
+#
+#   ANTHROPIC_API_KEY          fallback AI key (prod keys arrive per-client from the Hub)
+#   SUPABASE_URL               Moca Hub Supabase project URL (server-side)
+#   SUPABASE_SERVICE_ROLE_KEY  Moca Hub Supabase service role key (server-side)
+#
+# These match the env var names used by the Moca Hub Netlify Functions, so the
+# same Supabase project is reused.

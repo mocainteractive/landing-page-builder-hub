@@ -22,9 +22,34 @@ export interface SiteSignals {
 const FETCH_TIMEOUT_MS = 12000;
 const MAX_CSS_BYTES = 600_000;
 
+// Route outbound requests through the egress proxy when one is configured
+// (Moca Hub and similar sandboxes restrict direct egress). Node's global fetch
+// does not honour HTTP(S)_PROXY automatically, so we wire an undici dispatcher.
+let proxyDispatcher: unknown;
+let proxyResolved = false;
+async function getDispatcher(): Promise<unknown> {
+  if (proxyResolved) return proxyDispatcher;
+  proxyResolved = true;
+  const proxy =
+    process.env.HTTPS_PROXY ||
+    process.env.https_proxy ||
+    process.env.HTTP_PROXY ||
+    process.env.http_proxy;
+  if (proxy) {
+    try {
+      const { ProxyAgent } = await import("undici");
+      proxyDispatcher = new ProxyAgent(proxy);
+    } catch {
+      /* undici unavailable — fall back to direct fetch */
+    }
+  }
+  return proxyDispatcher;
+}
+
 async function fetchText(url: string): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const dispatcher = await getDispatcher();
   try {
     const res = await fetch(url, {
       signal: controller.signal,
@@ -34,7 +59,9 @@ async function fetchText(url: string): Promise<string> {
         accept: "text/html,text/css,*/*",
       },
       redirect: "follow",
-    });
+      // `dispatcher` is an undici-specific init field not in the DOM types.
+      ...(dispatcher ? { dispatcher } : {}),
+    } as RequestInit);
     if (!res.ok) throw new Error(`Fetch failed (${res.status}) for ${url}`);
     return await res.text();
   } finally {

@@ -88,6 +88,46 @@ lib/
 - **Export leggero**: nessuna dipendenza JS nell'output. Solo i font Google via
   `<link>` e gli stili inline generati dai token.
 
+## Testare in Moca Hub
+
+L'app è un progetto **Next.js standard** e gira come gli altri `*-hub`.
+
+1. **Avvio sessione (Claude Code sul web)** — l'hook `SessionStart`
+   (`.claude/hooks/session-start.sh`) installa automaticamente le dipendenze.
+2. **Variabili d'ambiente** — imposta `ANTHROPIC_API_KEY` nell'ambiente del
+   progetto su Moca Hub. Senza, l'editor funziona comunque (brand euristico +
+   editing manuale), ma estrazione AI e modifiche AI sono disabilitate.
+3. **Avvio app**:
+   ```bash
+   npm run dev     # sviluppo, http://localhost:3000
+   # oppure
+   npm run build && npm start   # produzione
+   ```
+4. **Checklist di test** (in `/editor`):
+   - **Compose**: "Add block" aggiunge sezioni; trascina i **Layers** per
+     riordinare; il preview si aggiorna in tempo reale.
+   - **Editing inline**: clicca una sezione → nell'Inspector modifichi
+     testi/immagini/liste (e card/piani) **senza codice**.
+   - **Editing AI**: scrivi un commento → "Apply AI edit" cambia **solo** quel
+     blocco. "Reset block" torna alla versione brand-driven.
+   - **Brand**: pannello Brand → "Extract brand" da un URL, oppure "Adjust
+     tokens manually" per colori/font. L'intera pagina si ri-tematizza.
+   - **Export**: "Export HTML" scarica un file; aprilo nel browser per
+     verificare che sia self-contained e on-brand. "Copy HTML" copia negli
+     appunti.
+   - Il lavoro è **persistito in localStorage**, quindi sopravvive ai refresh.
+
+### Requisiti di rete
+
+- L'**estrazione brand** fa una richiesta HTTP in uscita verso il sito del
+  cliente: l'ambiente deve permettere l'**egress**. Il fetch è già
+  **proxy-aware** (usa `HTTPS_PROXY`/`HTTP_PROXY` via `undici`). Se l'ambiente
+  fa MITM TLS con una CA custom, imposta `NODE_EXTRA_CA_CERTS` al bundle CA.
+  Se l'egress è bloccato, l'estrazione restituisce un errore gestito e puoi
+  comunque impostare il brand a mano.
+- Le **chiamate al modello** vanno verso `api.anthropic.com` (di norma sempre
+  raggiungibile).
+
 ## Deploy
 
 `npm run build && npm start`, oppure deploy su una piattaforma Node (es. Vercel).

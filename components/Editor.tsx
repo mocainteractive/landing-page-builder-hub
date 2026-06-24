@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { BlockInstance, BlockType, BrandTokens, PageDoc } from "@/lib/types";
 import { DEFAULT_TOKENS } from "@/lib/tokens";
-import { BLOCK_LIST, createBlock, renderBlock } from "@/lib/blocks";
+import { BLOCKS, BLOCK_LIST, createBlock, renderBlock } from "@/lib/blocks";
 import { buildHtmlDocument, buildPreviewDocument } from "@/lib/export";
 import { Layers } from "./Layers";
+import { ContentForm } from "./ContentForm";
 
 const STORAGE_KEY = "moca-lpb:v1";
 
@@ -104,6 +105,13 @@ export default function Editor() {
     }));
   }, []);
 
+  const updateProps = useCallback((id: string, props: Record<string, unknown>) => {
+    setPage((p) => ({
+      ...p,
+      blocks: p.blocks.map((b) => (b.id === id ? { ...b, props } : b)),
+    }));
+  }, []);
+
   const setBrand = useCallback((brand: BrandTokens) => {
     setPage((p) => ({ ...p, brand }));
   }, []);
@@ -183,6 +191,7 @@ export default function Editor() {
           onApplyEdit={applyEdit}
           onReset={resetBlock}
           onRemove={removeBlock}
+          onUpdateProps={updateProps}
         />
       </aside>
     </div>
@@ -276,8 +285,94 @@ function BrandPanel({
           </p>
         )}
       </div>
+
+      <details style={{ marginTop: 14 }}>
+        <summary style={{ cursor: "pointer", fontSize: 12, color: "var(--ed-muted)" }}>
+          Adjust tokens manually
+        </summary>
+        <div style={{ marginTop: 12 }}>
+          {(
+            [
+              ["primary", "Primary"],
+              ["secondary", "Secondary"],
+              ["accent", "Accent"],
+              ["background", "Background"],
+              ["surface", "Surface"],
+              ["text", "Text"],
+            ] as Array<[keyof BrandTokens["colors"], string]>
+          ).map(([key, label]) => (
+            <div
+              key={key}
+              style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}
+            >
+              <input
+                type="color"
+                value={toHex(brand.colors[key])}
+                onChange={(e) =>
+                  onBrand({
+                    ...brand,
+                    colors: { ...brand.colors, [key]: e.target.value },
+                  })
+                }
+                style={{ width: 34, height: 28, padding: 0, border: "none", background: "none" }}
+                aria-label={label}
+              />
+              <span style={{ fontSize: 12, color: "var(--ed-muted)" }}>{label}</span>
+              <code style={{ marginLeft: "auto", fontSize: 11 }}>{brand.colors[key]}</code>
+            </div>
+          ))}
+
+          <div className="field" style={{ marginTop: 10 }}>
+            <label>Heading font (Google Font)</label>
+            <input
+              className="input"
+              value={brand.typography.headingFont}
+              onChange={(e) =>
+                onBrand(setFont(brand, "headingFont", e.target.value))
+              }
+            />
+          </div>
+          <div className="field">
+            <label>Body font (Google Font)</label>
+            <input
+              className="input"
+              value={brand.typography.bodyFont}
+              onChange={(e) => onBrand(setFont(brand, "bodyFont", e.target.value))}
+            />
+          </div>
+        </div>
+      </details>
     </div>
   );
+}
+
+/** Coerce any CSS color to a #rrggbb value the native color input accepts. */
+function toHex(color: string): string {
+  if (/^#[0-9a-fA-F]{6}$/.test(color)) return color;
+  if (/^#[0-9a-fA-F]{3}$/.test(color)) {
+    return (
+      "#" +
+      color
+        .slice(1)
+        .split("")
+        .map((c) => c + c)
+        .join("")
+    );
+  }
+  return "#000000";
+}
+
+/** Update a font family and keep googleFonts in sync so the preview loads it. */
+function setFont(
+  brand: BrandTokens,
+  which: "headingFont" | "bodyFont",
+  value: string,
+): BrandTokens {
+  const typography = { ...brand.typography, [which]: value };
+  typography.googleFonts = [
+    ...new Set([typography.headingFont, typography.bodyFont].filter(Boolean)),
+  ];
+  return { ...brand, typography };
 }
 
 function Inspector({
@@ -286,12 +381,14 @@ function Inspector({
   onApplyEdit,
   onReset,
   onRemove,
+  onUpdateProps,
 }: {
   block: BlockInstance | null;
   brand: BrandTokens;
   onApplyEdit: (id: string, html: string) => void;
   onReset: (id: string) => void;
   onRemove: (id: string) => void;
+  onUpdateProps: (id: string, props: Record<string, unknown>) => void;
 }) {
   const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(false);
@@ -351,6 +448,21 @@ function Inspector({
       <h3>
         Inspector · <span style={{ textTransform: "capitalize", color: "var(--ed-text)" }}>{block.type}</span>
       </h3>
+
+      {block.customHtml ? (
+        <p className="hint" style={{ marginBottom: 14 }}>
+          This block is an AI-edited override (raw HTML). Reset it below to edit
+          fields again.
+        </p>
+      ) : (
+        <div style={{ marginBottom: 18 }}>
+          <ContentForm
+            fields={BLOCKS[block.type].fields}
+            value={block.props}
+            onChange={(next) => onUpdateProps(block.id, next)}
+          />
+        </div>
+      )}
 
       <div className="field">
         <label>Comment for the AI</label>

@@ -17,18 +17,39 @@ function list<T = Record<string, unknown>>(v: unknown): T[] {
   return Array.isArray(v) ? (v as T[]) : [];
 }
 
+/** Descriptor for an editable sub-field inside an object-array item. */
+export interface SubField {
+  key: string;
+  label: string;
+  type: "text" | "textarea" | "strings" | "boolean";
+}
+
+/** Descriptor for an editable field of a block, used to build the no-code form. */
+export type FieldDef =
+  | { key: string; label: string; type: "text" | "textarea" | "image" }
+  | { key: string; label: string; type: "strings"; help?: string }
+  | {
+      key: string;
+      label: string;
+      type: "objects";
+      itemLabel: string;
+      schema: SubField[];
+      blank: () => Record<string, unknown>;
+    };
+
 export interface BlockDefinition {
   type: BlockType;
   label: string;
   description: string;
   /** Default content used when the block is dropped onto the canvas. */
   defaults: () => Record<string, unknown>;
+  /** Editable fields exposed in the inspector (no-code editing). */
+  fields: FieldDef[];
   /** Render the block to clean, self-contained HTML using brand tokens/classes. */
   render: (props: Record<string, unknown>, t: BrandTokens) => string;
 }
 
-const PLACEHOLDER_IMG =
-  "https://placehold.co/640x440/eef2ff/64748b?text=Image";
+const PLACEHOLDER_IMG = "https://placehold.co/640x440/eef2ff/64748b?text=Image";
 
 export const BLOCKS: Record<BlockType, BlockDefinition> = {
   header: {
@@ -40,6 +61,11 @@ export const BLOCKS: Record<BlockType, BlockDefinition> = {
       links: ["Features", "Pricing", "Contact"],
       cta: "Get started",
     }),
+    fields: [
+      { key: "brand", label: "Brand name", type: "text" },
+      { key: "links", label: "Nav links", type: "strings", help: "One link per line" },
+      { key: "cta", label: "Button label", type: "text" },
+    ],
     render: (p, _t) => {
       const links = list<string>(p.links)
         .map((l) => `<a href="#">${esc(l)}</a>`)
@@ -68,6 +94,14 @@ export const BLOCKS: Record<BlockType, BlockDefinition> = {
       secondaryCta: "Learn more",
       image: PLACEHOLDER_IMG,
     }),
+    fields: [
+      { key: "eyebrow", label: "Eyebrow", type: "text" },
+      { key: "title", label: "Title", type: "text" },
+      { key: "subtitle", label: "Subtitle", type: "textarea" },
+      { key: "primaryCta", label: "Primary button", type: "text" },
+      { key: "secondaryCta", label: "Secondary button", type: "text" },
+      { key: "image", label: "Image URL", type: "image" },
+    ],
     render: (p, _t) => {
       return `<section class="lpb-section">
   <div class="lpb-container lpb-grid lpb-grid--2" style="align-items:center;">
@@ -101,6 +135,21 @@ export const BLOCKS: Record<BlockType, BlockDefinition> = {
         { title: "Clean export", text: "Download a single HTML file, ready for any hosting." },
       ],
     }),
+    fields: [
+      { key: "title", label: "Title", type: "text" },
+      { key: "subtitle", label: "Subtitle", type: "textarea" },
+      {
+        key: "items",
+        label: "Feature cards",
+        type: "objects",
+        itemLabel: "Card",
+        schema: [
+          { key: "title", label: "Title", type: "text" },
+          { key: "text", label: "Text", type: "textarea" },
+        ],
+        blank: () => ({ title: "New feature", text: "Describe it here." }),
+      },
+    ],
     render: (p, _t) => {
       const cards = list(p.items)
         .map(
@@ -131,6 +180,11 @@ export const BLOCKS: Record<BlockType, BlockDefinition> = {
       text: "Join the teams shipping faster with Moca Hub.",
       button: "Get started",
     }),
+    fields: [
+      { key: "title", label: "Title", type: "text" },
+      { key: "text", label: "Text", type: "textarea" },
+      { key: "button", label: "Button label", type: "text" },
+    ],
     render: (p, _t) => `<section class="lpb-section">
   <div class="lpb-container">
     <div style="background:var(--color-primary);color:#fff;border-radius:var(--radius-lg);padding:64px 40px;text-align:center;">
@@ -152,6 +206,11 @@ export const BLOCKS: Record<BlockType, BlockDefinition> = {
       author: "Jane Doe",
       role: "Head of Marketing",
     }),
+    fields: [
+      { key: "quote", label: "Quote", type: "textarea" },
+      { key: "author", label: "Author", type: "text" },
+      { key: "role", label: "Role", type: "text" },
+    ],
     render: (p, _t) => `<section class="lpb-section">
   <div class="lpb-container lpb-center" style="max-width:760px;">
     <p style="font-family:var(--font-heading);font-size:1.6rem;line-height:1.4;">“${esc(str(p.quote))}”</p>
@@ -173,6 +232,25 @@ export const BLOCKS: Record<BlockType, BlockDefinition> = {
         { name: "Pro", price: "€29", period: "/mo", features: ["Unlimited projects", "All blocks", "AI edits", "Priority support"], cta: "Go Pro", highlighted: true },
       ],
     }),
+    fields: [
+      { key: "title", label: "Title", type: "text" },
+      { key: "subtitle", label: "Subtitle", type: "textarea" },
+      {
+        key: "plans",
+        label: "Plans",
+        type: "objects",
+        itemLabel: "Plan",
+        schema: [
+          { key: "name", label: "Name", type: "text" },
+          { key: "price", label: "Price", type: "text" },
+          { key: "period", label: "Period", type: "text" },
+          { key: "features", label: "Features", type: "strings" },
+          { key: "cta", label: "Button label", type: "text" },
+          { key: "highlighted", label: "Highlighted", type: "boolean" },
+        ],
+        blank: () => ({ name: "New plan", price: "€0", period: "/mo", features: ["Feature"], cta: "Choose", highlighted: false }),
+      },
+    ],
     render: (p, _t) => {
       const plans = list(p.plans)
         .map((plan) => {
@@ -210,6 +288,10 @@ export const BLOCKS: Record<BlockType, BlockDefinition> = {
       title: "About us",
       body: "Tell your story here. Describe what you do and why it matters to your customers.",
     }),
+    fields: [
+      { key: "title", label: "Title", type: "text" },
+      { key: "body", label: "Body", type: "textarea" },
+    ],
     render: (p, _t) => `<section class="lpb-section">
   <div class="lpb-container" style="max-width:760px;">
     ${str(p.title) ? `<h2>${esc(p.title)}</h2>` : ""}
@@ -227,6 +309,11 @@ export const BLOCKS: Record<BlockType, BlockDefinition> = {
       links: ["Privacy", "Terms", "Contact"],
       copyright: "© 2026 Your Brand. All rights reserved.",
     }),
+    fields: [
+      { key: "brand", label: "Brand name", type: "text" },
+      { key: "links", label: "Links", type: "strings" },
+      { key: "copyright", label: "Copyright", type: "text" },
+    ],
     render: (p, _t) => {
       const links = list<string>(p.links)
         .map((l) => `<a href="#" class="lpb-muted">${esc(l)}</a>`)

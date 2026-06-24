@@ -1,26 +1,44 @@
-# Netlify configuration for the Next.js app (Moca Hub app).
-# The official Next.js runtime is auto-installed by Netlify; API routes run as
-# Node Functions (they use cheerio/undici/@supabase/supabase-js).
+# Netlify configuration — Moca Hub satellite app (Vite SPA + Functions).
 
 [build]
   command = "npm run build"
-  publish = ".next"
+  publish = "dist"
 
 [build.environment]
   NODE_VERSION = "22"
   # Public Moca Hub base URL the SDK validates launch tokens against.
-  # Override per site if you use a different hub deployment.
-  NEXT_PUBLIC_MOCA_HUB_URL = "https://moca-central-hub.netlify.app"
+  VITE_MOCA_HUB_URL = "https://moca-central-hub.netlify.app"
 
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
 
-# ── Secrets (set in Netlify UI → Site settings → Environment variables) ──────
-# Do NOT commit these. Server-only unless prefixed NEXT_PUBLIC_.
-#
-#   ANTHROPIC_API_KEY          fallback AI key (prod keys arrive per-client from the Hub)
-#   SUPABASE_URL               Moca Hub Supabase project URL (server-side)
-#   SUPABASE_SERVICE_ROLE_KEY  Moca Hub Supabase service role key (server-side)
-#
-# These match the env var names used by the Moca Hub Netlify Functions, so the
-# same Supabase project is reused.
+# cheerio/undici are installed at runtime rather than bundled by esbuild.
+[functions."extract-brand"]
+  external_node_modules = ["cheerio", "undici"]
+
+# /api/* → Netlify Functions (same convention as the Hub).
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+# SPA fallback (must come AFTER the /api/* redirect).
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# ── Secrets / env (set in Netlify UI → Environment variables) ────────────────
+# Frontend (exposed, VITE_ prefix):
+#   VITE_MOCA_HUB_URL          Moca Hub base URL (already set above)
+#   VITE_SUPABASE_URL          shared Moca Hub Supabase URL
+#   VITE_SUPABASE_ANON_KEY     shared Moca Hub anon key (RLS-protected)
+# Do NOT put the Supabase service_role key here — it's not used by this app.

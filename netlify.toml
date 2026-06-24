@@ -1,0 +1,19 @@
+# Netlify configuration for the Next.js app.
+# The official Next.js runtime is auto-installed by Netlify; this file pins the
+# build command and the plugin explicitly for reproducibility.
+
+[build]
+  command = "npm run build"
+  # The Next.js runtime manages output; `.next` is the build dir it reads.
+  publish = ".next"
+
+[build.environment]
+  # Use the same Node major we develop on.
+  NODE_VERSION = "22"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Server routes (/api/brand/extract, /api/block/edit) run as Netlify Functions.
+# They use Node APIs (cheerio, undici) — keep them on the Node runtime, which is
+# the default for the Next.js runtime on Netlify.
